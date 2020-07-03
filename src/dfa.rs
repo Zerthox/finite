@@ -117,9 +117,9 @@ where
 		}
 	}
 
-	fn step(&mut self, input: I) {
+	fn step(&mut self, input: &I) {
 		if let Some(current) = &self.current {
-			match self.get_state(current).unwrap().transitions.get(&input) {
+			match self.get_state(current).unwrap().transitions.get(input) {
 				Some(next) if self.has_state(next) => self.current = Some(next.clone()),
 				_ => self.current = None,
 			}
@@ -175,12 +175,12 @@ mod tests {
 		// check execution
 		dfa.set_current(0);
 		assert!(
-			dfa.run(vec!['a', 'a', 'b']),
+			dfa.run(&['a', 'a', 'b']),
 			"Incorrect result on accepting run"
 		);
 		assert_eq!(Some(&0), dfa.get_current(), "Incorrect state after run");
 		assert!(
-			!dfa.run("ba".chars()),
+			!dfa.run(&"ba".chars().collect::<Vec<_>>()),
 			"Incorrect result on not-accepting run"
 		);
 	}
@@ -190,6 +190,9 @@ mod tests {
 		let yaml = r"{states: {0: {accepts: false, transitions: {a: 0, b: 1}}, 1: [true, {b: 1}]}, current: 0}";
 		let mut dfa: DFA<u8, char> = serde_yaml::from_str(yaml).unwrap();
 		assert!(dfa.has_state(&0), "Deserialized DFA is missing state 0");
-		assert!(dfa.run("bbb".chars()), "Incorrect result after run");
+		assert!(
+			dfa.run(&"bbb".chars().collect::<Vec<_>>()),
+			"Incorrect result after run"
+		);
 	}
 }

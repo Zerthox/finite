@@ -66,13 +66,14 @@ where
 	fn accepts(&self) -> bool;
 
 	/// Performs a single state transition.
-	fn step(&mut self, input: I);
+	fn step(&mut self, input: &I);
 
 	/// Runs the automaton on a sequence of inputs.
 	/// This automatically resets the automaton after the execution.
-	fn run<V>(&mut self, inputs: V) -> bool
+	fn run<'a, V>(&mut self, inputs: V) -> bool
 	where
-		V: IntoIterator<Item = I>,
+		V: IntoIterator<Item = &'a I>,
+		I: 'a,
 	{
 		match self.get_current() {
 			Some(state) => {
