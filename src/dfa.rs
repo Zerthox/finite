@@ -1,6 +1,10 @@
-use super::{Automaton, AutomatonError};
+use super::{Automaton, AutomatonError, NFA};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt, hash::Hash};
+use std::{
+	collections::{HashMap, HashSet},
+	fmt,
+	hash::Hash,
+};
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -129,9 +133,46 @@ where
 	}
 }
 
+impl<S, I> Into<NFA<S, I>> for DFA<S, I>
+where
+	S: Default + Clone + Eq + Hash + fmt::Debug,
+	I: Default + Eq + Hash,
+{
+	fn into(self) -> NFA<S, I> {
+		let mut set = HashSet::new();
+		if let Some(current) = self.current {
+			set.insert(current);
+		}
+		NFA::from_map(
+			set,
+			self.states
+				.into_iter()
+				.map(|(id, state)| {
+					(
+						id,
+						(
+							state.accepts,
+							state
+								.transitions
+								.into_iter()
+								.map(|(input, state)| {
+									let mut set = HashSet::with_capacity(1);
+									set.insert(state);
+									(input, set)
+								})
+								.collect(),
+						),
+					)
+				})
+				.collect::<HashMap<S, (bool, HashMap<I, HashSet<S>>)>>(),
+		)
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use maplit::hashmap;
 
 	#[test]
 	fn construct() {
@@ -196,5 +237,25 @@ mod tests {
 			dfa.run(&"bbb".chars().collect::<Vec<_>>()),
 			"Incorrect result after run"
 		);
+	}
+
+	#[test]
+	fn convert() {
+		// construct a new DFA
+		let dfa = DFA::<u32, char>::from_map(
+			0,
+			hashmap!(
+				0 => (false, hashmap!(
+					'a' => 0,
+					'b' => 1
+				)),
+				1 => (true, hashmap!(
+					'a' => 1
+				))
+			),
+		);
+		let mut nfa: NFA<_, _> = dfa.into();
+		assert!(nfa.has_state(&0), "Converted NFA is missing state 0");
+		assert!(nfa.run(&['a', 'b', 'a']), "Incorrect result after run");
 	}
 }
