@@ -6,8 +6,13 @@ where
 	Self: Default,
 	S: Clone + PartialEq + fmt::Debug,
 {
-	/// Internal state type.
+	/// Automaton state type.
 	type State: Clone;
+
+	/// Automaton transition type.
+	///
+	/// Usually a tuple.
+	type Transition;
 
 	/// Creates a new empty automaton.
 	fn new() -> Self {
@@ -46,11 +51,11 @@ where
 	) -> Result<Self, AutomatonError<S>>
 	where
 		V: IntoIterator<Item = (S, bool)>,
-		T: IntoIterator<Item = (S, I, S)>,
+		T: IntoIterator<Item = Self::Transition>,
 	{
 		let mut automaton = Self::from_states(initial, states);
-		for (prev, input, next) in transitions {
-			automaton.add_transition(prev, input, next)?;
+		for transition in transitions {
+			automaton.add_transition(transition)?;
 		}
 		Ok(automaton)
 	}
@@ -63,7 +68,7 @@ where
 
 	/// Adds a new transition to the automaton.
 	/// Returns an `AutomatonError::InexistentState` error if one of the states is inexistent.
-	fn add_transition(&mut self, prev: S, input: I, next: S) -> Result<(), AutomatonError<S>>;
+	fn add_transition(&mut self, transition: Self::Transition) -> Result<(), AutomatonError<S>>;
 
 	/// Updates the current state.
 	/// If the automaton does not have the passed state, it will go into an invalid state.

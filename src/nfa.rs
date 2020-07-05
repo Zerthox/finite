@@ -82,6 +82,7 @@ where
 	I: Default + Eq + Hash,
 {
 	type State = HashSet<S>;
+	type Transition = (S, I, S);
 
 	fn new_state(id: S) -> Self::State {
 		let mut state = HashSet::with_capacity(1);
@@ -97,7 +98,8 @@ where
 		self.states.insert(id, State::new(accept, HashMap::new()));
 	}
 
-	fn add_transition(&mut self, prev: S, input: I, next: S) -> Result<(), AutomatonError<S>> {
+	fn add_transition(&mut self, transition: Self::Transition) -> Result<(), AutomatonError<S>> {
+		let (prev, input, next) = transition;
 		if !self.has_state(&next) {
 			Err(AutomatonError::InexistentState(next))
 		} else {
@@ -188,8 +190,8 @@ mod tests {
 		// construct a simple DFA
 		let mut nfa = NFA::<u32, char>::with_state(0, false);
 		nfa.add_state(1, true);
-		nfa.add_transition(0, 'a', 0).unwrap();
-		nfa.add_transition(0, 'a', 1).unwrap();
+		nfa.add_transition((0, 'a', 0)).unwrap();
+		nfa.add_transition((0, 'a', 1)).unwrap();
 
 		// check states
 		assert!(nfa.has_state(&0), "Initially added state missing");
@@ -207,9 +209,9 @@ mod tests {
 		let mut nfa = NFA::<u8, char>::with_state(0, false);
 		nfa.add_state(1, false);
 		nfa.add_state(2, true);
-		nfa.add_transition(0, 'a', 1).unwrap();
-		nfa.add_transition(0, 'a', 2).unwrap();
-		nfa.add_transition(1, 'b', 1).unwrap();
+		nfa.add_transition((0, 'a', 1)).unwrap();
+		nfa.add_transition((0, 'a', 2)).unwrap();
+		nfa.add_transition((1, 'b', 1)).unwrap();
 
 		nfa.set_current(hashset![0, 1]);
 		assert_eq!(
