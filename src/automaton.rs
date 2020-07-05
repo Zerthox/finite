@@ -4,7 +4,7 @@ use std::fmt;
 pub trait Automaton<S, I>
 where
 	Self: Default,
-	S: Clone + PartialEq + fmt::Debug + fmt::Display,
+	S: Clone + PartialEq + fmt::Debug,
 {
 	/// Internal state type.
 	type State: Clone;
@@ -18,15 +18,15 @@ where
 	fn with_state(id: S, accept: bool) -> Self {
 		let mut automaton = Self::new();
 		automaton.add_state(id.clone(), accept);
-		automaton.set_current(Self::new_state(id, accept));
+		automaton.set_current(Self::new_state(id));
 		automaton
 	}
 
 	/// Creates a new state.
-	fn new_state(id: S, accept: bool) -> Self::State;
+	fn new_state(id: S) -> Self::State;
 
 	/// Creates a new automaton with a given set of states.
-	fn from_states<V>(states: V) -> Self
+	fn from_states<V>(initial: Self::State, states: V) -> Self
 	where
 		V: IntoIterator<Item = (S, bool)>,
 	{
@@ -34,16 +34,21 @@ where
 		for (id, accept) in states {
 			automaton.add_state(id, accept);
 		}
+		automaton.set_current(initial);
 		automaton
 	}
 
 	/// Creates a new automaton with a given set of states & transitions.
-	fn from<V, T>(states: V, transitions: T) -> Result<Self, AutomatonError<S>>
+	fn from_transitions<V, T>(
+		initial: Self::State,
+		states: V,
+		transitions: T,
+	) -> Result<Self, AutomatonError<S>>
 	where
 		V: IntoIterator<Item = (S, bool)>,
 		T: IntoIterator<Item = (S, I, S)>,
 	{
-		let mut automaton = Self::from_states(states);
+		let mut automaton = Self::from_states(initial, states);
 		for (prev, input, next) in transitions {
 			automaton.add_transition(prev, input, next)?;
 		}
@@ -100,18 +105,18 @@ where
 #[derive(Debug)]
 pub enum AutomatonError<S>
 where
-	S: fmt::Debug + fmt::Display,
+	S: fmt::Debug,
 {
 	InexistentState(S),
 }
 
 impl<S> fmt::Display for AutomatonError<S>
 where
-	S: fmt::Debug + fmt::Display,
+	S: fmt::Debug,
 {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			Self::InexistentState(state) => write!(f, "Inexistent State ID {}", state),
+			Self::InexistentState(state) => write!(f, "Inexistent State ID \"{:?}\"", state),
 		}
 	}
 }

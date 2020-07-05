@@ -29,7 +29,7 @@ where
 #[serde(default, deny_unknown_fields)]
 pub struct DFA<S, I>
 where
-	S: Default + Clone + Eq + Hash + fmt::Debug + fmt::Display,
+	S: Default + Clone + Eq + Hash + fmt::Debug,
 	I: Default + Eq + Hash,
 {
 	current: Option<S>,
@@ -38,29 +38,25 @@ where
 
 impl<S, I> DFA<S, I>
 where
-	S: Default + Clone + Eq + Hash + fmt::Debug + fmt::Display,
+	S: Default + Clone + Eq + Hash + fmt::Debug,
 	I: Default + Eq + Hash,
 {
 	/// Creates a new DFA with a given map of states.
-	pub fn from_map<M>(states: M) -> Self
+	pub fn from_map<M>(initial: S, states: M) -> Self
 	where
 		M: Into<HashMap<S, (bool, HashMap<I, S>)>>,
 	{
+		let map = states.into();
 		Self {
-			states: states
-				.into()
+			current: if map.contains_key(&initial) {
+				Some(initial)
+			} else {
+				None
+			},
+			states: map
 				.into_iter()
-				.map(|(state, (accepts, transitions))| {
-					(
-						state,
-						State {
-							accepts,
-							transitions,
-						},
-					)
-				})
+				.map(|(state, (accepts, transitions))| (state, State::new(accepts, transitions)))
 				.collect(),
-			..Self::default()
 		}
 	}
 
@@ -81,12 +77,12 @@ where
 
 impl<S, I> Automaton<S, I> for DFA<S, I>
 where
-	S: Default + Clone + Eq + Hash + fmt::Debug + fmt::Display,
+	S: Default + Clone + Eq + Hash + fmt::Debug,
 	I: Default + Eq + Hash,
 {
 	type State = S;
 
-	fn new_state(id: S, _accept: bool) -> Self::State {
+	fn new_state(id: S) -> Self::State {
 		id
 	}
 

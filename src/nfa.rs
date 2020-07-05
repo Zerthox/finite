@@ -34,7 +34,7 @@ where
 #[serde(default, deny_unknown_fields)]
 pub struct NFA<S, I>
 where
-	S: Default + Clone + Eq + Hash + fmt::Debug + fmt::Display,
+	S: Default + Clone + Eq + Hash + fmt::Debug,
 	I: Default + Eq + Hash,
 {
 	current: HashSet<S>,
@@ -43,29 +43,21 @@ where
 
 impl<S, I> NFA<S, I>
 where
-	S: Default + Clone + Eq + Hash + fmt::Debug + fmt::Display,
+	S: Default + Clone + Eq + Hash + fmt::Debug,
 	I: Default + Eq + Hash,
 {
 	/// Creates a new NFA with a given map of states.
-	pub fn from_map<M>(states: M) -> Self
+	pub fn from_map<M>(initial: HashSet<S>, states: M) -> Self
 	where
 		M: Into<HashMap<S, (bool, HashMap<I, HashSet<S>>)>>,
 	{
+		let map = states.into();
 		Self {
-			states: states
-				.into()
+			current: initial,
+			states: map
 				.into_iter()
-				.map(|(state, (accepts, transitions))| {
-					(
-						state,
-						State {
-							accepts,
-							transitions,
-						},
-					)
-				})
+				.map(|(state, (accepts, transitions))| (state, State::new(accepts, transitions)))
 				.collect(),
-			..Self::default()
 		}
 	}
 
@@ -86,12 +78,12 @@ where
 
 impl<S, I> Automaton<S, I> for NFA<S, I>
 where
-	S: Default + Clone + Eq + Hash + fmt::Debug + fmt::Display,
+	S: Default + Clone + Eq + Hash + fmt::Debug,
 	I: Default + Eq + Hash,
 {
 	type State = HashSet<S>;
 
-	fn new_state(id: S, _accept: bool) -> Self::State {
+	fn new_state(id: S) -> Self::State {
 		let mut state = HashSet::with_capacity(1);
 		state.insert(id);
 		state
@@ -113,7 +105,7 @@ where
 			if let Some(set) = transitions.get_mut(&input) {
 				set.insert(next);
 			} else {
-				transitions.insert(input, Self::new_state(next, true));
+				transitions.insert(input, Self::new_state(next));
 			}
 			Ok(())
 		}
