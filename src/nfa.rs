@@ -1,7 +1,7 @@
-use super::{Automaton, AutomatonError};
+use super::{Automaton, AutomatonError, DFA};
 use serde::{Deserialize, Serialize};
 use std::{
-	collections::{HashMap, HashSet},
+	collections::{BTreeSet, HashMap, HashSet},
 	fmt,
 	hash::Hash,
 };
@@ -145,10 +145,43 @@ where
 	}
 }
 
+impl<S, I> Into<DFA<BTreeSet<S>, I>> for NFA<S, I>
+where
+	S: Default + Clone + Eq + Ord + Hash + fmt::Debug,
+	I: Default + Clone + Eq + Hash,
+{
+	fn into(self) -> DFA<BTreeSet<S>, I> {
+		let size = 1 << self.states.len();
+		let mut states = HashMap::with_capacity(size - 1);
+		for i in 1..size {
+			let iter = self
+				.states
+				.iter()
+				.enumerate()
+				.filter(|(j, _)| i & (1 << j) != 0)
+				.map(|(_, el)| el);
+			let state_set = iter.clone().map(|(id, _)| id.clone()).collect();
+			let accepts = iter.clone().any(|(_, State { accepts, .. })| *accepts);
+			let mut transition_map: HashMap<I, BTreeSet<S>> = HashMap::new();
+			for (_, State { transitions, .. }) in iter {
+				for (input, next) in transitions {
+					if let Some(states) = transition_map.get_mut(input) {
+						states.append(&mut next.iter().cloned().collect());
+					} else {
+						transition_map.insert(input.clone(), next.iter().cloned().collect());
+					}
+				}
+			}
+			states.insert(state_set, (accepts, transition_map));
+		}
+		DFA::from_map(self.current.into_iter().collect(), states)
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use maplit::hashset;
+	use maplit::{btreeset, hashmap, hashset};
 
 	#[test]
 	fn construct() {
@@ -213,5 +246,28 @@ mod tests {
 			nfa.run(&"aaa".chars().collect::<Vec<_>>()),
 			"Incorrect result after run"
 		);
+	}
+
+	#[test]
+	fn convert() {
+		let nfa = NFA::from_map(
+			hashset![0, 1],
+			hashmap!(
+				0 => (true, hashmap!(
+					'a' => hashset![0, 1],
+					'b' => hashset![]
+				)),
+				1 => (false, hashmap!(
+					'a' => hashset![1],
+					'b' => hashset![0, 1]
+				))
+			),
+		);
+		let mut dfa: DFA<_, _> = nfa.into();
+		assert!(
+			dfa.has_state(&btreeset![0, 1]),
+			"Converted DFA is missing state {0, 1}"
+		);
+		assert!(dfa.run(&['a', 'b', 'b']), "Incorrect result after run");
 	}
 }
