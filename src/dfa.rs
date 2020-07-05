@@ -2,9 +2,9 @@ use super::{Automaton, AutomatonError};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt, hash::Hash};
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-struct State<I, S>
+#[derive(Default, Debug, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+struct State<S, I>
 where
 	I: Eq + Hash,
 {
@@ -12,7 +12,7 @@ where
 	transitions: HashMap<I, S>,
 }
 
-impl<I, S> State<I, S>
+impl<S, I> State<S, I>
 where
 	I: Eq + Hash,
 {
@@ -25,15 +25,15 @@ where
 }
 
 /// A deterministic finite state automaton.
-#[derive(Default, Debug, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct DFA<S, I>
 where
 	S: Default + Clone + Eq + Hash + fmt::Debug + fmt::Display,
 	I: Default + Eq + Hash,
 {
 	current: Option<S>,
-	states: HashMap<S, State<I, S>>,
+	states: HashMap<S, State<S, I>>,
 }
 
 impl<S, I> DFA<S, I>
@@ -41,7 +41,7 @@ where
 	S: Default + Clone + Eq + Hash + fmt::Debug + fmt::Display,
 	I: Default + Eq + Hash,
 {
-	/// Creates a new automaton with a given map of states.
+	/// Creates a new DFA with a given map of states.
 	pub fn from_map<M>(states: M) -> Self
 	where
 		M: Into<HashMap<S, (bool, HashMap<I, S>)>>,
@@ -65,14 +65,14 @@ where
 	}
 
 	/// Returns a reference to the requested state or an `AutomatonError::InexistentState` error otherwise.
-	fn get_state(&self, id: &S) -> Result<&State<I, S>, AutomatonError<S>> {
+	fn get_state(&self, id: &S) -> Result<&State<S, I>, AutomatonError<S>> {
 		self.states
 			.get(id)
 			.ok_or_else(|| AutomatonError::InexistentState(id.clone()))
 	}
 
 	/// Returns a mutable reference to the requested state or an `AutomatonError::InexistentState` error otherwise.
-	fn get_state_mut(&mut self, id: &S) -> Result<&mut State<I, S>, AutomatonError<S>> {
+	fn get_state_mut(&mut self, id: &S) -> Result<&mut State<S, I>, AutomatonError<S>> {
 		self.states
 			.get_mut(id)
 			.ok_or_else(|| AutomatonError::InexistentState(id.clone()))
@@ -84,6 +84,12 @@ where
 	S: Default + Clone + Eq + Hash + fmt::Debug + fmt::Display,
 	I: Default + Eq + Hash,
 {
+	type State = S;
+
+	fn new_state(id: S, _accept: bool) -> Self::State {
+		id
+	}
+
 	fn has_state(&self, id: &S) -> bool {
 		self.states.contains_key(id)
 	}
