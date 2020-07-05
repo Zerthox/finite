@@ -6,6 +6,9 @@ where
 	Self: Default,
 	S: Clone + PartialEq + fmt::Debug + fmt::Display,
 {
+	/// Internal state type.
+	type State: Clone;
+
 	/// Creates a new empty automaton.
 	fn new() -> Self {
 		Self::default()
@@ -15,9 +18,12 @@ where
 	fn with_state(id: S, accept: bool) -> Self {
 		let mut automaton = Self::new();
 		automaton.add_state(id.clone(), accept);
-		automaton.set_current(id);
+		automaton.set_current(Self::new_state(id, accept));
 		automaton
 	}
+
+	/// Creates a new state.
+	fn new_state(id: S, accept: bool) -> Self::State;
 
 	/// Creates a new automaton with a given set of states.
 	fn from_states<V>(states: V) -> Self
@@ -51,16 +57,16 @@ where
 	fn add_state(&mut self, id: S, accept: bool);
 
 	/// Adds a new transition to the automaton.
-	/// Returns an `AutomatonError::InexistentState` error
+	/// Returns an `AutomatonError::InexistentState` error if one of the states is inexistent.
 	fn add_transition(&mut self, prev: S, input: I, next: S) -> Result<(), AutomatonError<S>>;
 
 	/// Updates the current state.
 	/// If the automaton does not have the passed state, it will go into an invalid state.
-	fn set_current(&mut self, id: S);
+	fn set_current(&mut self, state: Self::State);
 
 	/// Gets the current state.
 	/// Returns None if the current state is invalid.
-	fn get_current(&self) -> Option<&S>;
+	fn get_current(&self) -> Option<&Self::State>;
 
 	/// Checks whether the current state is accepting.
 	fn accepts(&self) -> bool;
